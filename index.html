@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>SalónEstudio · Koke</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;background:#f5f5f0;min-height:100vh;color:#1a1a1a}
+.bar{background:#fff;border-bottom:1px solid #e8e8e4;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+.logo{font-size:17px;font-weight:700}
+.logo span{color:#1D9E75}
+.main{padding:16px;padding-bottom:80px}
+.card{background:#fff;border:1px solid #e8e8e4;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.ibox{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.btn{width:100%;padding:13px;border-radius:11px;border:none;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;color:#fff}
+.opt{background:#f5f5f0;border:1.5px solid #e8e8e4;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;font-size:14px;text-align:left;width:100%}
+.opt.ok{background:#EAF3DE;border-color:#639922;color:#27500A}
+.opt.err{background:#FCEBEB;border-color:#E24B4A;color:#791F1F}
+.fb{font-size:13px;padding:11px 14px;border-radius:10px;margin:10px 0}
+.fb.ok{background:#EAF3DE;color:#27500A}
+.fb.err{background:#FCEBEB;color:#791F1F}
+.hint-box{background:#FFF8E7;border:1.5px solid #EF9F27;border-radius:12px;padding:14px;margin-top:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+
+const PROXY='https://salon-proxy.j-quevedo-luengo.workers.dev/';
+
+const RAMOS=[
+  {id:'mat', n:'Matemáticas I',     e:'📐',c:'#FAEEDA',ct:'#633806',cb:'#EF9F27'},
+  {id:'eco', n:'Fund. de Economía', e:'📈',c:'#E1F5EE',ct:'#0F6E56',cb:'#1D9E75'},
+  {id:'adm', n:'Adm. de Empresas',  e:'🏢',c:'#E6F1FB',ct:'#0C447C',cb:'#378ADD'},
+  {id:'cont',n:'Contabilidad I',    e:'📒',c:'#EEEDFE',ct:'#3C3489',cb:'#7F77DD'},
+];
+
+const TEMAS={
+  mat: ['Conjuntos y Venn','Expresiones Algebraicas','Ecuaciones Lineales','Sistemas 2x2','Sucesiones','Inducción Matemática'],
+  eco: ['10 Principios Mankiw','FPP y modelos','Ventaja Comparativa','Oferta y Demanda','Elasticidad','Políticas del Gobierno'],
+  adm: ['Historia y Enfoques','Planeación','Organización','Dirección y Liderazgo','Porter y FODA'],
+  cont:['Conceptos Fundamentales','Asientos Contables','IVA y PPM','FIFO y PPP','Libro Mayor y Balance'],
+};
+
+const CTX={
+  mat:'Matemáticas I Ingeniería Comercial UNAB. Conjuntos (unión, intersección, complemento, cardinalidad, Venn), factorización (cuadrado binomio, diferencia cuadrados, cubos, trinomios), ecuaciones lineales y cuadráticas (fórmula general), sistemas 2x2 (sustitución, eliminación), sucesiones (Σk=n(n+1)/2, Σk²=n(n+1)(2n+1)/6), inducción matemática.',
+  eco:'Economía UNAB. Mankiw 7ma Cap 1-6: 10 principios, FPP, economía positiva/normativa, ceteris paribus, ventaja comparativa/absoluta, ley demanda/oferta, desplazamientos, equilibrio, elasticidades, precio máximo/mínimo, impuestos, peso muerto.',
+  adm:'Administración UNAB. Taylor, Fayol (14 principios, 5 funciones), Hawthorne, sinergia, planeación estratégica/táctica/operativa, misión/visión/FODA, organigramas, unidad de mando, centralización, 3 liderazgos, comunicación, 5 Fuerzas Porter.',
+  cont:'Contabilidad I UNAB. Ecuación A=P+Patrimonio, partida doble (DEBE=activos/gastos, HABER=pasivos/patrimonio/ingresos), libro diario/mayor, IVA 19%, PPM, FIFO, PPP, balance 8 columnas.',
+};
+
+// STATE
+let xp=0,streak=0,totalQ=0,correct=0,errors=[];
+let chatHistory=[];
+let screen='home',prevScr='home';
+let curRamo=null,curTema=null,actType='quiz';
+let q=null,loading=false,answered=false;
+let sel=null,fillV='',calcV='',showH=false;
+let sQ=0,sC=0;
+
+// STORAGE
+function load(){
+  try{const s=JSON.parse(localStorage.getItem('sx')||'{}');
+    xp=s.xp||0;streak=s.streak||0;totalQ=s.totalQ||0;
+    correct=s.correct||0;errors=s.errors||[];chatHistory=s.ch||[];
+  }catch(e){}
+}
+function save(){
+  try{localStorage.setItem('sx',JSON.stringify({xp,streak,totalQ,correct,errors,ch:chatHistory}));}catch(e){}
+}
+
+// API
+async function claude(prompt,max){
+  const r=await fetch(PROXY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:max||800,messages:[{role:'user',content:prompt}]})
+  });
+  const d=await r.json();
+  return d.content?.map(c=>c.text||'').join('')||'';
+}
+
+async function genQ(rid,tema,type){
+  const ctx=CTX[rid];
+  const p={
+    quiz:`${ctx}\nGenera UNA pregunta múltiple choice sobre "${tema}". SOLO JSON sin backticks:\n{"question":"...","options":["A","B","C","D"],"correct":0,"hint":"explicación","explanation":"concepto clave"}`,
+    calculo:`${ctx}\nGenera UN ejercicio de cálculo sobre "${tema}". SOLO JSON sin backticks:\n{"problem":"enunciado con números","answer":"respuesta exacta","hint":"pasos","explanation":"fórmula clave","unit":"unidad"}`,
+    completar:`${ctx}\nGenera UNA oración para completar sobre "${tema}". SOLO JSON sin backticks:\n{"before":"texto antes","blank":"respuesta","after":"texto después","hint":"explicación","explanation":"concepto"}`,
+  };
+  const txt=await claude(p[type]||p.quiz,800);
+  return JSON.parse(txt.replace(/```json|```/g,'').trim());
+}
+
+// NAV
+function go(s){prevScr=screen;screen=s;render();}
+function back(){screen=prevScr;render();}
+
+function bar(label,fn){
+  return `<div class="bar">
+    <span onclick="${fn||'back()'}" style="font-size:14px;color:#666;cursor:pointer">&#8249; ${label}</span>
+    <div class="logo">Salón<span>Estudio</span></div>
+    <div style="display:flex;gap:8px;font-size:13px;font-weight:700">
+      <span style="color:#E24B4A">🔥${streak}</span>
+      <span style="color:#BA7517">⭐${xp}</span>
+    </div>
+  </div>`;
+}
+
+// RENDER
+function render(){
+  const map={home:pgHome,ramo:pgRamo,practice:pgPractice,chat:pgChat,errores:pgErrores};
+  document.getElementById('app').innerHTML=(map[screen]||pgHome)();
+  bindInputs();
+}
+
+// HOME
+function pgHome(){
+  return `<div class="bar">
+    <div class="logo">Salón<span>Estudio</span></div>
+    <div style="display:flex;gap:8px;font-size:13px;font-weight:700">
+      <span style="color:#E24B4A">🔥${streak}</span>
+      <span style="color:#BA7517">⭐${xp} XP</span>
+    </div>
+  </div>
+  <div class="main">
+    <div style="background:linear-gradient(135deg,#1D9E75,#0a5c44);border-radius:18px;padding:18px;margin-bottom:14px;color:#fff">
+      <div style="font-size:19px;font-weight:700;margin-bottom:2px">¡Hola, Koke! 👋</div>
+      <div style="font-size:12px;opacity:.8">Ing. Comercial · UNAB · IA generativa activa 🤖</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div onclick="go('chat')" style="background:#E6F1FB;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">💬</span><span style="font-size:14px;font-weight:700;color:#378ADD">Explícame</span>
+      </div>
+      <div onclick="go('errores')" style="background:#FCEBEB;border-radius:14px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">❌</span><span style="font-size:14px;font-weight:700;color:#E24B4A">Mis Errores</span>
+      </div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Mis ramos</div>
+    ${RAMOS.map(r=>`
+      <div class="card" onclick="curRamo=RAMOS.find(x=>x.id==='${r.id}');go('ramo')">
+        <div class="ibox" style="background:${r.c}">${r.e}</div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:700">${r.n}</div>
+          <div style="font-size:12px;color:#888">${TEMAS[r.id].length} temas · ∞ ejercicios IA</div>
+        </div>
+        <span style="color:#ccc;font-size:20px">›</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+// RAMO
+function pgRamo(){
+  const R=curRamo;
+  return `${bar(R.n,"go('home')")}
+  <div class="main">
+    <div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Tipo</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      ${[['quiz','📝','Quiz'],['calculo','🔢','Cálculo'],['completar','✏️','Completar']].map(([id,e,n])=>`
+        <div onclick="actType='${id}';render()" style="padding:8px 14px;border-radius:999px;border:1.5px solid ${actType===id?R.cb:'#ddd'};background:${actType===id?R.c:'#fff'};cursor:pointer;font-size:13px;font-weight:600;color:${actType===id?R.ct:'#555'}">${e} ${n}</div>`).join('')}
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Temas</div>
+    ${TEMAS[R.id].map(t=>`
+      <div class="card" onclick="curTema='${t.replace(/'/g,"\\'")}';sQ=0;sC=0;go('practice');loadQ()">
+        <div class="ibox" style="background:${R.c}">${R.e}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">${t}</div>
+          <div style="font-size:12px;color:#888">${actType==='calculo'?'+25':actType==='quiz'?'+20':'+15'} XP</div>
+        </div>
+        <span style="color:#ccc;font-size:20px">›</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+// LOAD Q
+async function loadQ(){
+  loading=true;q=null;answered=false;sel=null;fillV='';calcV='';showH=false;
+  render();
+  try{
+    const res=await genQ(curRamo.id,curTema,actType);
+    q={...res,type:actType};
+  }catch(e){
+    q={type:actType,question:'Error de conexión. Verifica tu WiFi.',
+      options:['Reintentar','—','—','—'],correct:0,
+      hint:'Necesitas WiFi para generar ejercicios.',explanation:'',
+      problem:'Sin conexión.',answer:'',unit:'',before:'Sin',blank:'conexión',after:'.'};
+  }
+  loading=false;render();
+}
+
+function answer(ok){
+  if(answered)return;
+  answered=true;totalQ++;sQ++;
+  if(ok){
+    const g=actType==='calculo'?25:actType==='quiz'?20:15;
+    xp+=g;streak++;correct++;sC++;
+  }else{
+    streak=0;showH=true;
+    if(q) errors=[{...q,tema:curTema,ts:Date.now()},...errors].slice(0,50);
+  }
+  save();render();
+}
+
+// PRACTICE
+function pgPractice(){
+  const R=curRamo;
+  let body='';
+
+  if(loading){
+    body=`<div style="text-align:center;padding:60px 20px">
+      <div style="font-size:40px;display:inline-block;animation:spin 1s linear infinite">⚙️</div>
+      <div style="font-size:15px;font-weight:600;color:#555;margin-top:14px">Generando ejercicio único...</div>
+      <div style="font-size:12px;color:#888;margin-top:6px">🤖 Claude está pensando</div>
+    </div>`;
+  } else if(q){
+
+    // QUIZ
+    if(actType==='quiz'){
+      body+=`<div style="font-size:16px;font-weight:600;line-height:1.6;margin-bottom:16px">${q.question||''}</div>`;
+      body+=(q.options||[]).map((o,i)=>{
+        let cls='opt';
+        if(answered){if(i===q.correct)cls+=' ok';else if(i===sel)cls+=' err';}
+        return `<button class="${cls}" onclick="if(!answered){sel=${i};answer(${i}===${q.correct})}">${['A','B','C','D'][i]}. ${o}</button>`;
+      }).join('');
+    }
+
+    // COMPLETAR
+    if(actType==='completar'){
+      body+=`<div style="font-size:15px;line-height:2.5;margin-bottom:14px">
+        ${q.before||''} <input id="fi" style="border:none;border-bottom:2px solid ${R.cb};background:transparent;font-size:15px;padding:2px 6px;width:140px;outline:none;text-align:center;font-family:inherit" placeholder="..." ${answered?'disabled':''} value="${answered?q.blank:fillV}"> ${q.after||''}
+      </div>`;
+      if(!answered) body+=`<button class="btn" style="background:${R.cb}" onclick="fillV=document.getElementById('fi').value;answer(fillV.trim().toLowerCase()==='${(q.blank||'').toLowerCase()}')">Verificar</button>`;
+      if(answered) body+=`<div class="fb ${fillV.trim().toLowerCase()===(q.blank||'').toLowerCase()?'ok':'err'}">${fillV.trim().toLowerCase()===(q.blank||'').toLowerCase()?'✓ ¡Correcto!':'✗ La respuesta es: "'+q.blank+'"'}</div>`;
+    }
+
+    // CALCULO
+    if(actType==='calculo'){
+      body+=`<div style="font-size:16px;font-weight:600;line-height:1.6;margin-bottom:12px">${q.problem||''}</div>`;
+      body+=`<div style="background:${R.c};border-radius:10px;padding:10px 14px;font-size:13px;color:${R.ct};margin-bottom:12px">💡 ${(q.hint||'').split('.')[0]}.</div>`;
+      body+=`<input id="ci" style="width:100%;padding:11px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;background:#f9f9f7;font-family:inherit;outline:none;margin-bottom:10px" placeholder="Tu respuesta ${q.unit?'('+q.unit+')':''}" ${answered?'disabled':''} value="${answered?q.answer:calcV}">`;
+      if(!answered) body+=`<button class="btn" style="background:${R.cb}" onclick="calcV=document.getElementById('ci').value;answer(calcV.trim().toLowerCase()==='${(q.answer||'').toLowerCase()}')">Verificar</button>`;
+      if(answered) body+=`<div class="fb ${calcV.trim().toLowerCase()===(q.answer||'').toLowerCase()?'ok':'err'}">${calcV.trim().toLowerCase()===(q.answer||'').toLowerCase()?'✓ ¡Correcto! Respuesta: '+q.answer+(q.unit?' '+q.unit:''):'✗ Incorrecto. Mira el hint 👇'}</div>`;
+    }
+
+    // HINT
+    if(answered&&(sel!==q.correct||actType!=='quiz')){
+      if(!((actType==='calculo'&&calcV.trim().toLowerCase()===(q.answer||'').toLowerCase())||(actType==='completar'&&fillV.trim().toLowerCase()===(q.blank||'').toLowerCase()))){
+        body+=`<div class="hint-box"><div style="font-size:13px;font-weight:700;color:#633806;margin-bottom:6px">📖 Recuerda, Koke:</div>
+          <div style="font-size:13px;color:#633806;line-height:1.6;margin-bottom:8px">${q.hint||''}</div>
+          ${q.explanation?`<div style="background:#FAEEDA;border-radius:8px;padding:8px 10px;font-size:12px;color:#854F0B;font-weight:600">🔑 ${q.explanation}</div>`:''}
+        </div>`;
+      }
+    }
+    if(!answered){
+      body+=`<button class="btn" style="background:#f0f0ec;color:#555;border:1px solid #ddd;margin-top:10px" onclick="showH=true;render()">💡 Ver hint</button>`;
+      if(showH) body+=`<div class="hint-box" style="margin-top:8px"><div style="font-size:13px;color:#633806;line-height:1.6">${q.hint||''}</div></div>`;
+    }
+    if(answered){
+      body+=`<button class="btn" style="background:${R.cb};margin-top:12px" onclick="loadQ()">Siguiente ejercicio →</button>`;
+    }
+  }
+
+  return `${bar(R?.n||'',"go('ramo')")}
+  <div class="main">
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div style="background:#fff;border:1px solid #e8e8e4;border-radius:10px;padding:10px;flex:1;text-align:center">
+        <div style="font-size:15px;font-weight:700">${sC}/${sQ}</div>
+        <div style="font-size:10px;color:#888">Sesión</div>
+      </div>
+      <div style="background:#fff;border:1px solid #e8e8e4;border-radius:10px;padding:10px;flex:1;text-align:center">
+        <div style="font-size:15px;font-weight:700">🔥${streak}</div>
+        <div style="font-size:10px;color:#888">Racha</div>
+      </div>
+      <div style="background:#fff;border:1px solid #e8e8e4;border-radius:10px;padding:10px;flex:1;text-align:center">
+        <div style="font-size:15px;font-weight:700">⭐${xp}</div>
+        <div style="font-size:10px;color:#888">XP</div>
+      </div>
+    </div>
+    ${q&&!loading?`<div style="background:${R?.c};border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;color:${R?.ct};display:inline-block;margin-bottom:12px">${curTema}</div>`:''}
+    ${body}
+  </div>`;
+}
+
+// CHAT
+function pgChat(){
+  return `${bar('Inicio',"go('home')")}
+  <div style="background:#fff;border-bottom:1px solid #e8e8e4;padding:8px 16px">
+    <div style="font-size:13px;color:#777">💬 Pregúntame cualquier cosa de tus ramos</div>
+  </div>
+  <div id="msgs" style="padding:14px;padding-bottom:80px;display:flex;flex-direction:column;gap:10px;height:calc(100vh - 115px);overflow-y:auto">
+    ${chatHistory.length===0?`<div style="background:#fff;border:1px solid #e8e8e4;border-radius:14px;padding:12px 14px;font-size:14px;max-width:85%">¡Hola Koke! 🎓 Pregúntame lo que quieras de tus 4 ramos.</div>`:''}
+    ${chatHistory.map(m=>m.r==='u'
+      ?`<div style="display:flex;justify-content:flex-end"><div style="background:#1D9E75;color:#fff;border-radius:14px 14px 4px 14px;padding:10px 14px;font-size:14px;max-width:82%;line-height:1.5">${m.t}</div></div>`
+      :`<div style="background:#fff;border:1px solid #e8e8e4;border-radius:14px;padding:10px 14px;font-size:14px;max-width:85%;line-height:1.5">${m.t}</div>`
+    ).join('')}
+  </div>
+  <div style="position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e8e8e4;padding:10px 14px;display:flex;gap:8px">
+    <input id="ci2" placeholder="Escribe tu pregunta..." style="flex:1;padding:10px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:14px;font-family:inherit;outline:none">
+    <button onclick="sendChat()" style="padding:10px 16px;border-radius:10px;border:none;background:#1D9E75;color:#fff;font-size:14px;font-weight:700;cursor:pointer">→</button>
+  </div>`;
+}
+
+async function sendChat(){
+  const inp=document.getElementById('ci2');
+  if(!inp||!inp.value.trim()) return;
+  const msg=inp.value.trim();inp.value='';
+  chatHistory=[...chatHistory,{r:'u',t:msg}];
+  render();
+  try{
+    const ctx=Object.values(CTX).join('\n');
+    const resp=await claude(`Eres tutor de Koke, estudiante Ing.Comercial UNAB primer año.\nRamos: ${ctx}\nKoke pregunta: "${msg}"\nResponde claro y motivador en máximo 3 oraciones.`,400);
+    chatHistory=[...chatHistory,{r:'a',t:resp}];
+  }catch(e){
+    chatHistory=[...chatHistory,{r:'a',t:'Sin conexión 😅 Verifica tu WiFi.'}];
+  }
+  save();render();
+  setTimeout(()=>{const el=document.getElementById('msgs');if(el)el.scrollTop=el.scrollHeight;},80);
+}
+
+// ERRORES
+function pgErrores(){
+  return `${bar('Inicio',"go('home')")}
+  <div class="main">
+    <div style="font-size:17px;font-weight:700;margin-bottom:4px">❌ Mis Errores</div>
+    <div style="font-size:13px;color:#777;margin-bottom:14px">${errors.length} guardados</div>
+    ${errors.length===0
+      ?`<div style="text-align:center;padding:40px;color:#aaa"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:16px;font-weight:600">¡Sin errores!</div></div>`
+      :errors.map(e=>`<div style="background:#fff;border:1.5px solid #FCEBEB;border-radius:14px;padding:14px;margin-bottom:10px">
+          <div style="font-size:11px;color:#E24B4A;font-weight:700;margin-bottom:4px">${e.tema||'—'}</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px">${(e.question||e.problem||e.before||'Pregunta').slice(0,100)}</div>
+          ${e.hint?`<div style="background:#FFF8E7;border-radius:8px;padding:8px 10px;font-size:12px;color:#633806">📖 ${e.hint}</div>`:''}
+        </div>`).join('')}
+    ${errors.length>0?`<button class="btn" style="background:#FCEBEB;color:#E24B4A;border:1px solid #fcc;margin-top:4px" onclick="errors=[];save();render()">🗑 Limpiar historial</button>`:''}
+  </div>`;
+}
+
+// BIND INPUTS
+function bindInputs(){
+  const fi=document.getElementById('fi');
+  if(fi) fi.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&!answered){fillV=fi.value;answer(fillV.trim().toLowerCase()===(q?.blank||'').toLowerCase());}
+  });
+  const ci=document.getElementById('ci');
+  if(ci) ci.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&!answered){calcV=ci.value;answer(calcV.trim().toLowerCase()===(q?.answer||'').toLowerCase());}
+  });
+  const ci2=document.getElementById('ci2');
+  if(ci2) ci2.addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
+  const msgs=document.getElementById('msgs');
+  if(msgs) setTimeout(()=>msgs.scrollTop=msgs.scrollHeight,80);
+}
+
+// INIT
+load();
+render();
+</script>
+</body>
+</html>
