@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1D9E75">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SalónEstudio">
+<title>SalónEstudio · Koke · Ing. Comercial UNAB</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f0;min-height:100vh;color:#1a1a1a;overscroll-behavior:none;touch-action:manipulation}
+.topbar{background:#fff;border-bottom:1px solid #e8e8e4;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:20}
+.logo{font-size:16px;font-weight:700}.logo span{color:#1D9E75}
+.main{padding:16px;padding-bottom:100px;max-height:calc(100vh - 52px);overflow-y:auto}
+.card{background:#fff;border:1px solid #e8e8e4;border-radius:14px;padding:13px 15px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:border-color .15s}
+.card:active{opacity:.85}
+.ibox{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.btn{width:100%;padding:13px;border-radius:11px;border:none;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;color:#fff;transition:opacity .15s}
+.btn:active{opacity:.8}
+.btn-sec{background:#f0f0ec!important;color:#444!important;border:1px solid #ddd!important}
+.btn-red{background:#FCEBEB!important;color:#E24B4A!important;border:1px solid #fcc!important}
+.opt{background:#f5f5f0;border:1.5px solid #e8e8e4;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;font-size:14px;color:#1a1a1a;transition:all .15s;text-align:left;width:100%}
+.opt.ok{background:#EAF3DE;border-color:#639922;color:#27500A}
+.opt.err{background:#FCEBEB;border-color:#E24B4A;color:#791F1F}
+.fb{font-size:13px;padding:11px 14px;border-radius:10px;margin:10px 0;line-height:1.45}
+.fb.ok{background:#EAF3DE;color:#27500A}
+.fb.err{background:#FCEBEB;color:#791F1F}
+.hint-box{background:#FFF8E7;border:1.5px solid #EF9F27;border-radius:12px;padding:14px;margin-top:8px}
+.prog-bar{height:7px;background:#f0f0ec;border-radius:999px;overflow:hidden;margin-bottom:6px}
+.prog-fill{height:100%;border-radius:999px;transition:width .4s}
+.sec{font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.tag{font-size:11px;padding:3px 9px;border-radius:999px;font-weight:700}
+input.blank{border:none;border-bottom:2px solid #1D9E75;background:transparent;font-size:15px;color:#1a1a1a;padding:2px 6px;width:150px;outline:none;text-align:center;font-family:inherit}
+input.calc{width:100%;padding:11px 13px;border:1.5px solid #ddd;border-radius:10px;font-size:15px;background:#f9f9f7;font-family:inherit;color:#1a1a1a;outline:none;margin-bottom:10px}
+input.calc:focus{border-color:#1D9E75;outline:none}
+.stat-box{background:#fff;border:1px solid #e8e8e4;border-radius:12px;padding:12px 8px;text-align:center}
+.stat-num{font-size:20px;font-weight:700}
+.stat-lbl{font-size:10px;color:#888;margin-top:2px}
+.chat-msg-user{background:#1D9E75;color:#fff;border-radius:14px 14px 4px 14px;padding:10px 14px;font-size:14px;line-height:1.5;max-width:80%;align-self:flex-end}
+.chat-msg-bot{background:#fff;border:1px solid #e8e8e4;border-radius:14px 14px 14px 4px;padding:10px 14px;font-size:14px;line-height:1.5;max-width:82%}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ════════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════════
+const PER_TEMA   = 30;
+const BATCH_SIZE = 3;
+const TYPES_CACHE = ['quiz','calculo'];
+const CACHE_KEY  = 'sx_cache_v2';
+const META_KEY   = 'sx_meta_v2';
+const STATS_KEY  = 'sx_stats_v2';
+const CHAT_KEY   = 'sx_chat_v2';
+
+const RAMOS = [
+  {id:'mat',  n:'Matemáticas I',      e:'📐', c:'#FAEEDA', ct:'#633806', cb:'#EF9F27', badge:'refuerzo'},
+  {id:'eco',  n:'Fund. de Economía',  e:'📈', c:'#E1F5EE', ct:'#0F6E56', cb:'#1D9E75', badge:'excelente'},
+  {id:'adm',  n:'Adm. de Empresas',   e:'🏢', c:'#E6F1FB', ct:'#0C447C', cb:'#378ADD', badge:'excelente'},
+  {id:'cont', n:'Contabilidad I',     e:'📒', c:'#EEEDFE', ct:'#3C3489', cb:'#7F77DD', badge:'excelente'},
+];
+
+const TEMAS = {
+  mat:  ['Conjuntos y diagramas de Venn','Expresiones Algebraicas','Ecuaciones Lineales','Sistemas de Ecuaciones 2×2','Sucesiones y Sumatorias','Inducción Matemática'],
+  eco:  ['Los 10 Principios (Mankiw)','FPP y modelos económicos','Ventaja Comparativa','Oferta y Demanda','Elasticidad','Políticas del Gobierno'],
+  adm:  ['Historia y Enfoques Administrativos','Planeación y Tipos','Organización y Organigramas','Dirección y Liderazgo','5 Fuerzas de Porter y FODA'],
+  cont: ['Conceptos Fundamentales','Asientos Contables','IVA Crédito/Débito y PPM','FIFO y PPP — Existencias','Libro Mayor y Balance 8 Col.'],
+};
+
+const CTX = {
+  mat:  'Matemáticas I Ing.Comercial UNAB. Temas: sistemas ecuaciones 2x2 (sustitución, eliminación), ecuaciones cuadráticas (fórmula general, discriminante), factorización (cuadrado binomio, diferencia cuadrados, suma/dif cubos, trinomios), conjuntos (unión∪, intersección∩, complemento A\', diferencia A\\B, cardinalidad |A|, Venn), sucesiones (aₙ término n-ésimo, Σk=n(n+1)/2, Σk²=n(n+1)(2n+1)/6, Σk³=[n(n+1)/2]²), inducción matemática (caso base, hipótesis, paso inductivo). Ref: Sullivan 7ma ed., Álgebra de Baldor.',
+  eco:  'Economía Ing.Comercial UNAB. Mankiw 7ma ed. Cap 1-6: 10 principios (costo oportunidad, análisis marginal, incentivos, mano invisible, tradeoff eficiencia-igualdad, nivel de vida=productividad, inflación=dinero en exceso), FPP (combinaciones máximas, punto dentro=ineficiente, sobre=imposible), economía positiva vs normativa, ceteris paribus, ventaja comparativa vs absoluta, ley demanda (relación inversa P-Qd), ley oferta (directa P-Qs), desplazamientos curvas (ingreso, gustos, precios relacionados, expectativas), equilibrio (Qd=Qs), elasticidad precio (Ed=(ΔQ/Q)/(ΔP/P), elástica|Ed|>1, inelástica|Ed|<1), elasticidad ingreso (positiva=normal, negativa=inferior), elasticidad cruzada (positiva=sustitutos, negativa=complementarios), precio máximo (escasez), precio mínimo (excedente), impuestos (peso muerto, incidencia según elasticidad), excedente consumidor/productor.',
+  adm:  'Adm.Empresas Ing.Comercial UNAB. Material Monreal/Fuentes UNAB: administración=servir (latín), Taylor (adm.científica 1911, mejor forma de trabajar), Fayol (14 principios: div.trabajo, autoridad, disciplina, unidad mando/dirección, interés general, remuneración, centralización, jerarquía, orden, equidad, estabilidad, iniciativa, espíritu grupo; 5 funciones: planificación, organización, dirección, coordinación, control), Hawthorne (normas sociales, grupo afecta individuo), sinergia (todo>suma partes), planeación (estratégica=largo plazo, táctica=mediano, operativa=corto), misión(para qué existimos)/visión(dónde queremos llegar)/valores, FODA (F=interno+, D=interno-, O=externo+, A=externo-), organización=2da fase, organigramas (lineal/vertical, funcional/horizontal, matricial, circular), departamentalización (función, producto, proyecto, geografía, clientes, procesos, tiempo), unidad de mando (1 solo jefe), centralización vs descentralización (inversamente proporcionales), tramos de control (amplio/estrecho), delegación (objetivos, autoridad, responsabilidad, rendir cuentas), 3 liderazgos (autocrático=órdenes sin opinar, anárquico=ambiente>producción, democrático=ideal, involucra equipo), comunicación (emisor, mensaje, canal, receptor, retroalimentación), 5 Fuerzas Porter (rivalidad, nuevos entrantes, sustitutos, proveedores, clientes), cadena de valor (actividades que generan ventaja competitiva).',
+  cont: 'Contabilidad I Ing.Comercial UNAB. Contabilidad chilena: ecuación contable A=P+Patrimonio, activo (recursos empresa: caja, mercaderías, bodega, clientes), pasivo (obligaciones terceros: proveedores, préstamos), patrimonio (recursos propios: capital, utilidades), partida doble (todo cargo=abono igual), DEBE=cargo aumenta activos y gastos, HABER=abono aumenta pasivos/patrimonio/ingresos, libro diario (asientos con fecha/número/cuentas/debe/haber/glosa), libro mayor (cuentas T, saldo deudor=Debe>Haber normal en activos, saldo acreedor=Haber>Debe normal en pasivos), asiento apertura (caja+bienes→capital), asiento compra contado (mercaderías+IVACrédito→caja), compra crédito (mercaderías+IVACrédito→proveedores), venta crédito (clientes→ventas+IVADébito + CostoVenta→mercaderías), IVA Chile=19% sobre precio neto, IVA Crédito Fiscal=IVA pagado en compras, IVA Débito Fiscal=IVA cobrado en ventas, liquidación IVA=DébitoFiscal-CréditoFiscal (si>0 se paga SII), PPM=% sobre ingresos brutos del mes (anticipo impuesto renta), FIFO=primero en entrar primero en salir, PPP=precio promedio ponderado (valor total/unidades disponibles), tarjeta existencias (entradas/salidas/saldo en unidades y valores), costo de ventas (DEBE: CostoVentas, HABER: Mercaderías), balance 8 columnas (sumas, saldos, ajustes, balance final + estado resultados).',
+};
+
+const BADGE_DEFS = [
+  {id:'first',  icon:'🎯', n:'Primer ejercicio',   cond:s=>s.totalQ>=1},
+  {id:'ten',    icon:'🔟', n:'10 ejercicios',       cond:s=>s.totalQ>=10},
+  {id:'fifty',  icon:'💪', n:'50 ejercicios',       cond:s=>s.totalQ>=50},
+  {id:'streak3',icon:'🔥', n:'Racha de 3',          cond:s=>s.maxStreak>=3},
+  {id:'streak7',icon:'💥', n:'Racha de 7',          cond:s=>s.maxStreak>=7},
+  {id:'flow',   icon:'🌿', n:'Estado de flujo',     cond:s=>s.maxStreak>=5},
+  {id:'xp100',  icon:'⭐', n:'100 XP',              cond:s=>s.xp>=100},
+  {id:'xp500',  icon:'🏆', n:'500 XP',              cond:s=>s.xp>=500},
+  {id:'allram', icon:'🎓', n:'4 ramos estudiados',  cond:s=>Object.keys(s.ramosSeen||{}).length>=4},
+  {id:'exam',   icon:'📋', n:'Primer examen',       cond:s=>s.exams>=1},
+  {id:'chat',   icon:'💬', n:'Primer chat IA',      cond:s=>s.chats>=1},
+  {id:'offline',icon:'📦', n:'Estudió offline',     cond:s=>s.offlineSessions>=1},
+];
+
+const KMSGS = {
+  idle:    ['¡Listo Koke! ¿Qué atacamos? 💪','Modo estratega: ON 🧠','¿Estudio o examen hoy? 🎯','¡Aquí estamos! 🔥'],
+  happy:   ['¡ESO! ¡Crack total! ⭐','¡Ingeniería level up! 📈','¡Estado de flujo! 🌿','¡Sí lo logramos! 💥'],
+  sad:     ['Tranquilo, mira el hint 👇','Esto lo arreglamos 💪','Error = aprendizaje 🎯','Lee el hint Koke 📖'],
+  think:   ['Claude generando... ⚙️','Un momento Koke 🤖','Preparando ejercicio 📝','Consultando la IA...'],
+  flow:    ['¡RACHA! ¡Imparable! 🌿🔥','¡3 seguidas! Flujo activado','¡Modo Koke ON! ⚡'],
+  explain: ['Pregúntame lo que quieras 📚','¿Qué no entendiste? 💬','Aquí para explicarte 🎓'],
+  offline: ['Modo offline 📦 ejercicios guardados','Sin internet — usando caché 🚇','Estudiando sin WiFi 💪'],
+};
+const rnd = a => a[Math.floor(Math.random()*a.length)];
+
+// ════════════════════════════════════════════════════════════════
+// STORAGE
+// ════════════════════════════════════════════════════════════════
+const db = {
+  get:async k=>{try{const r=await window.storage?.get(k);return r?JSON.parse(r.value):JSON.parse(localStorage.getItem(k))}catch{try{return JSON.parse(localStorage.getItem(k))}catch{return null}}},
+  set:async(k,v)=>{const s=JSON.stringify(v);try{await window.storage?.set(k,s)}catch{}try{localStorage.setItem(k,s)}catch{}},
+};
+
+// ════════════════════════════════════════════════════════════════
+// API
+// ════════════════════════════════════════════════════════════════
+const PROXY='https://salon-proxy.j-quevedo-luengo.workers.dev/';
+async function callClaude(prompt, maxTok=1500){
+  const r=await fetch(PROXY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTok,messages:[{role:'user',content:prompt}]})
+  });
+  const d=await r.json();
+  return d.content?.map(c=>c.text||'').join('')||'';
+}
+
+async function genBatch(ramoId,tema,type,count){
+  const ctx=CTX[ramoId];
+  const p={
+    quiz:`${ctx}\nGenera ${count} preguntas múltiple choice DISTINTAS sobre "${tema}". Varía dificultad. SOLO JSON array sin backticks:\n[{"question":"...","options":["A","B","C","D"],"correct":0,"hint":"explicación 2 oraciones","explanation":"concepto clave 1 oración"}]`,
+    calculo:`${ctx}\nGenera ${count} ejercicios de cálculo DISTINTOS con números diferentes sobre "${tema}". SOLO JSON array sin backticks:\n[{"problem":"enunciado con números concretos","answer":"respuesta exacta","hint":"pasos para resolver","explanation":"fórmula o concepto clave","unit":"unidad de medida"}]`,
+    completar:`${ctx}\nGenera ${count} oraciones para completar DISTINTAS sobre "${tema}". SOLO JSON array sin backticks:\n[{"before":"texto antes del espacio","blank":"palabra o frase correcta (max 4 palabras)","after":"texto después","hint":"explicación breve","explanation":"concepto clave"}]`,
+    examen:`${ctx}\nGenera 5 preguntas de examen variadas sobre "${tema}". SOLO JSON array sin backticks:\n[{"question":"...","options":["A","B","C","D"],"correct":0,"hint":"..."}]`,
+  };
+  const txt=await callClaude(p[type]||p.quiz,4000);
+  const arr=JSON.parse(txt.replace(/```json|```/g,'').trim());
+  return Array.isArray(arr)?arr:[arr];
+}
+
+async function chatClaude(msg,history){
+  const allCtx=Object.values(CTX).join('\n\n');
+  const hist=history.slice(-6).map(m=>`${m.role==='user'?'Koke':'Tutor'}: ${m.txt}`).join('\n');
+  const prompt=`Eres el tutor personal de Koke, estudiante de Ingeniería Comercial UNAB primer año. Contexto de sus 4 ramos:\n${allCtx}\n\nHistorial reciente:\n${hist}\n\nKoke pregunta: "${msg}"\n\nResponde claro, simple y motivador en máximo 4 oraciones. Usa emojis ocasionalmente. Si hay fórmula, muéstrala claramente.`;
+  return await callClaude(prompt,500);
+}
+
+// ════════════════════════════════════════════════════════════════
+// KOKE SVG
+// ════════════════════════════════════════════════════════════════
+function kokesvg(mode,size){
+  const s=size||60;
+  const cfg={
+    normal: {cheeks:false,sweat:false,star:false,brows:false,big:false,sad:false,glasses:false,badge:''},
+    happy:  {cheeks:true, sweat:false,star:true, brows:false,big:true, sad:false,glasses:false,badge:'⭐'},
+    sad:    {cheeks:false,sweat:true, star:false,brows:true, big:false,sad:true, glasses:false,badge:'💧'},
+    think:  {cheeks:false,sweat:false,star:false,brows:false,big:false,sad:false,glasses:true, badge:'💭'},
+    flow:   {cheeks:true, sweat:false,star:true, brows:false,big:true, sad:false,glasses:false,badge:'🌿'},
+    explain:{cheeks:false,sweat:false,star:false,brows:false,big:false,sad:false,glasses:true, badge:'💬'},
+    exam:   {cheeks:false,sweat:false,star:false,brows:false,big:false,sad:false,glasses:true, badge:'📋'},
+    offline:{cheeks:false,sweat:false,star:false,brows:false,big:false,sad:false,glasses:false,badge:'📦'},
+  };
+  const f=cfg[mode]||cfg.normal;
+  const h=s*1.15;
+  return `<svg width="${s}" height="${h}" viewBox="0 0 60 69" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="30" cy="9"  rx="17" ry="9.5" fill="#1E0F0A"/>
+    <ellipse cx="14" cy="15" rx="6"  ry="8"   fill="#1E0F0A"/>
+    <ellipse cx="46" cy="15" rx="6"  ry="8"   fill="#1E0F0A"/>
+    <ellipse cx="30" cy="22" rx="16" ry="14"  fill="#F2C899"/>
+    ${f.cheeks?'<circle cx="17" cy="26" r="4.5" fill="#F4A0A0" opacity="0.55"/><circle cx="43" cy="26" r="4.5" fill="#F4A0A0" opacity="0.55"/>':''}
+    ${f.brows?'<path d="M20 17 Q24 15 27 17" stroke="#3D2010" stroke-width="1.4" stroke-linecap="round"/><path d="M33 17 Q36 15 40 17" stroke="#3D2010" stroke-width="1.4" stroke-linecap="round"/>':''}
+    <circle cx="22" cy="22" r="3.2" fill="#1E0F0A"/>
+    <circle cx="38" cy="22" r="3.2" fill="#1E0F0A"/>
+    <circle cx="23" cy="21" r="1.1" fill="#fff"/>
+    <circle cx="39" cy="21" r="1.1" fill="#fff"/>
+    ${f.glasses?'<rect x="17" y="19" width="10" height="7" rx="3" stroke="#555" stroke-width="1.4" fill="none" opacity="0.7"/><rect x="33" y="19" width="10" height="7" rx="3" stroke="#555" stroke-width="1.4" fill="none" opacity="0.7"/><line x1="27" y1="22.5" x2="33" y2="22.5" stroke="#555" stroke-width="1.4"/>':''}
+    ${f.big?'<path d="M23 29 Q30 35 37 29" stroke="#8B3A1A" stroke-width="2" fill="#F4A0A0" stroke-linecap="round"/>':f.sad?'<path d="M24 31 Q30 27 36 31" stroke="#8B3A1A" stroke-width="1.6" fill="none" stroke-linecap="round"/>':'<path d="M24 29 Q30 33 36 29" stroke="#8B3A1A" stroke-width="1.6" fill="none" stroke-linecap="round"/>'}
+    <ellipse cx="30" cy="33" rx="10" ry="4.5" fill="#2A1208" opacity="0.85"/>
+    ${f.sweat?'<ellipse cx="49" cy="17" rx="2" ry="3.5" fill="#88CCFF" opacity="0.8"/>':''}
+    ${f.badge?`<text x="47" y="13" font-size="11" text-anchor="middle">${f.badge}</text>`:''}
+    <rect x="13" y="38" width="34" height="21" rx="7" fill="#1a1a1a"/>
+    <line x1="30" y1="38" x2="30" y2="59" stroke="#2e2e2e" stroke-width="2"/>
+    <circle cx="22" cy="43" r="2" fill="#333"/>
+    <rect x="4"  y="39" width="11" height="8" rx="4" fill="#1a1a1a"/>
+    <rect x="45" y="39" width="11" height="8" rx="4" fill="#1a1a1a"/>
+    <circle cx="9"  cy="48" r="3.5" fill="#F2C899"/>
+    <circle cx="51" cy="48" r="3.5" fill="#F2C899"/>
+    ${mode==='think'||mode==='explain'?'<circle cx="51" cy="36" r="3.5" fill="#F2C899"/>':''}
+    <rect x="15" y="57" width="13" height="10" rx="4" fill="#2d2d2d"/>
+    <rect x="32" y="57" width="13" height="10" rx="4" fill="#2d2d2d"/>
+    <ellipse cx="22" cy="67" rx="9" ry="3.5" fill="#E8E8E8"/>
+    <ellipse cx="38" cy="67" rx="9" ry="3.5" fill="#E8E8E8"/>
+    <ellipse cx="22" cy="66" rx="5" ry="1.5" fill="#ccc" opacity="0.6"/>
+    <ellipse cx="38" cy="66" rx="5" ry="1.5" fill="#ccc" opacity="0.6"/>
+  </svg>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+let S = {
+  screen:'home', prev:'home',
+  xp:0, streak:0, maxStreak:0, totalQ:0, correct:0,
+  errors:[], ramosSeen:{}, badges:[], exams:0, chats:0,
+  offlineSessions:0, ramoProgress:{}, spaced:{},
+};
+let cache = {};    // {ramoId__tema__type: [questions]}
+let cacheMeta = {};// {tema: {quiz:n, calculo:n}}
+let chatHistory = [];
+let kokeModeG = 'normal';
+let kokeBubbleG = rnd(KMSGS.idle);
+let newBadgeG = null;
+let questionG = null;
+let loadingG = false;
+let answeredG = false;
+let selectedG = null;
+let fillValG = '';
+let calcValG = '';
+let showHintG = false;
+let curRamo = null;
+let curTema = null;
+let actType = 'quiz';
+let sessionQ=0, sessionC=0, sessionErr=[];
+let examQs=[], examAns={}, examDone=false, examScore=null, examTimer=600;
+let examInterval=null;
+let dlRunning=false, dlCancel=false, dlProgress=0, dlDone=0, dlTotal=0, dlCurrent='';
+let onlineStatus=navigator.onLine;
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+async function init(){
+  const saved=await db.get(STATS_KEY);
+  if(saved) S={...S,...saved};
+  const c=await db.get(CACHE_KEY);
+  if(c) cache=c;
+  const m=await db.get(META_KEY);
+  if(m) cacheMeta=m;
+  const ch=await db.get(CHAT_KEY);
+  if(ch) chatHistory=ch;
+  window.addEventListener('online', ()=>{onlineStatus=true;render();});
+  window.addEventListener('offline',()=>{onlineStatus=false;render();});
+  render();
+  // auto-download if wifi
+  if(onlineStatus && countCached()<(Object.values(TEMAS).flat().length*TYPES_CACHE.length*PER_TEMA*0.5)){
+    setTimeout(()=>startDownload(true),3000);
+  }
+}
+
+async function saveStats(){
+  await db.set(STATS_KEY,{xp:S.xp,streak:S.streak,maxStreak:S.maxStreak,totalQ:S.totalQ,correct:S.correct,errors:S.errors,ramosSeen:S.ramosSeen,badges:S.badges,exams:S.exams,chats:S.chats,offlineSessions:S.offlineSessions,ramoProgress:S.ramoProgress,spaced:S.spaced});
+}
+
+function checkBadges(){
+  const cur=S.badges||[];
+  let changed=false;
+  BADGE_DEFS.forEach(b=>{
+    if(!cur.includes(b.id)&&b.cond(S)){
+      cur.push(b.id);
+      newBadgeG=b;
+      setTimeout(()=>{newBadgeG=null;render();},3000);
+      changed=true;
+    }
+  });
+  if(changed){S.badges=cur;saveStats();}
+}
+
+function addXP(n,isCorrect,ramoId,tema,q){
+  if(isCorrect){
+    S.xp+=n; S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak); S.correct++;
+    if(S.streak>=3) setKoke('flow',rnd(KMSGS.flow));
+    else setKoke('happy',rnd(KMSGS.happy));
+    if(tema){S.spaced=S.spaced||{};S.spaced[tema]=(S.spaced[tema]||0)+1;}
+  } else {
+    S.streak=0;
+    setKoke('sad',rnd(KMSGS.sad));
+    if(q){S.errors=[{...q,ramo:ramoId,tema,ts:Date.now()},...(S.errors||[])].slice(0,60);}
+    if(tema){S.spaced=S.spaced||{};S.spaced[tema]=Math.max(0,(S.spaced[tema]||0)-1);}
+  }
+  S.totalQ++;
+  if(ramoId){S.ramosSeen=S.ramosSeen||{};S.ramosSeen[ramoId]=true;}
+  S.ramoProgress=S.ramoProgress||{};
+  if(ramoId) S.ramoProgress[ramoId]=Math.min(100,(S.ramoProgress[ramoId]||0)+(isCorrect?2:0));
+  checkBadges();
+  saveStats();
+}
+
+function setKoke(mode,bubble){kokeModeG=mode;kokeBubbleG=bubble;}
+
+function countCached(){
+  return Object.values(cacheMeta).reduce((a,t)=>a+Object.values(t).reduce((b,v)=>b+v,0),0);
+}
+
+function getFromCache(ramoId,tema,type){
+  const key=`${ramoId}__${tema}__${type}`;
+  const pool=cache[key]||[];
+  if(pool.length===0) return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+// ════════════════════════════════════════════════════════════════
+// DOWNLOAD CACHE
+// ════════════════════════════════════════════════════════════════
+async function startDownload(auto=false){
+  // CORS bloqueado en GitHub Pages — guardamos al estudiar
+  if(!onlineStatus||dlRunning) return;
+  dlCancel=false; dlRunning=true; dlProgress=0; dlDone=0;
+  dlTotal=Object.values(TEMAS).flat().length*TYPES_CACHE.length;
+  goScreen('cache'); render();
+  let done=0;
+  for(const r of RAMOS){
+    for(const t of TEMAS[r.id]){
+      for(const tp of TYPES_CACHE){
+        if(dlCancel) break;
+        const have=cacheMeta[t]?.[tp]||0;
+        if(have>=5){done++;dlDone++;dlProgress=Math.round((done/dlTotal)*100);render();continue;}
+        dlCurrent=`${r.e} ${t.slice(0,28)} · ${tp}`;
+        render();
+        try{
+          const b=await genBatch(r.id,t,tp,5);
+          const key=`${r.id}__${t}__${tp}`;
+          cache[key]=[...(cache[key]||[]),...b].slice(-60);
+          await db.set(CACHE_KEY,cache);
+          if(!cacheMeta[t]) cacheMeta[t]={};
+          cacheMeta[t][tp]=(cacheMeta[t][tp]||0)+b.length;
+          await db.set(META_KEY,cacheMeta);
+        }catch(e){}
+        done++; dlDone++; dlProgress=Math.round((done/dlTotal)*100);
+        render();
+        await new Promise(res=>setTimeout(res,800));
+      }
+    }
+  }
+  dlRunning=false; dlCurrent=''; render();
+}
+
+// ════════════════════════════════════════════════════════════════
+// QUESTION LOGIC
+// ════════════════════════════════════════════════════════════════
+async function loadQuestion(){
+  loadingG=true; questionG=null; answeredG=false;
+  selectedG=null; fillValG=''; calcValG=''; showHintG=false;
+  setKoke('think',rnd(KMSGS.think));
+  render();
+  // Try cache first (offline or if available)
+  const cached=getFromCache(curRamo.id,curTema,actType);
+  if(cached&&(!onlineStatus||Math.random()<0.3)){
+    // Use cached 30% of time even online for variety
+    questionG={...cached,type:actType};
+    if(!onlineStatus){S.offlineSessions=(S.offlineSessions||0)+1;setKoke('offline',rnd(KMSGS.offline));}
+    else setKoke('think','¿Sabes la respuesta? 🤔');
+    loadingG=false; render(); return;
+  }
+  if(!onlineStatus){
+    if(cached){questionG={...cached,type:actType};loadingG=false;setKoke('offline',rnd(KMSGS.offline));render();return;}
+    questionG={type:actType,question:'Sin conexión y sin ejercicios guardados.',options:['Conectarse a WiFi','—','—','—'],correct:0,hint:'Descarga ejercicios cuando tengas WiFi.',explanation:'',problem:'Sin conexión',answer:'',unit:'',before:'Sin',blank:'conexión',after:'.'};
+    loadingG=false; render(); return;
+  }
+  try{
+    const q=await genBatch(curRamo.id,curTema,actType,1);
+    questionG={...(Array.isArray(q)?q[0]:q),type:actType};
+    setKoke('think','¿Sabes la respuesta? 🤔');
+  }catch(e){
+    if(cached){questionG={...cached,type:actType};}
+    else{questionG={type:actType,question:'Error de conexión.',options:['Reintentar','—','—','—'],correct:0,hint:'Verifica tu conexión.',explanation:'',problem:'Error',answer:'',unit:'',before:'Error',blank:'cargando',after:''};}
+  }
+  loadingG=false; render();
+}
+
+function handleAnswer(isCorrect){
+  if(answeredG) return;
+  answeredG=true;
+  const xpGain=actType==='calculo'?25:actType==='quiz'?20:15;
+  addXP(xpGain,isCorrect,curRamo?.id,curTema,questionG);
+  sessionQ++;
+  if(isCorrect) sessionC++;
+  else{sessionErr.push({...questionG,tema:curTema});if(!showHintG) showHintG=true;}
+  render();
+}
+
+// ════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════════════
+function goScreen(s){
+  S.prev=S.screen;
+  S.screen=s;
+  render();
+}
+function goBack(){goScreen(S.prev||'home');}
+
+// ════════════════════════════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════════════════════════════
+function render(){
+  const app=document.getElementById('app');
+  const screens={
+    home:renderHome, ramo:renderRamo, practice:renderPractice,
+    examen:renderExamen, exres:renderExRes, progreso:renderProgreso,
+    errores:renderErrores, explicame:renderChat, badges:renderBadges,
+    cache:renderCache, pizarra:renderPizarra,
+  };
+  app.innerHTML=(screens[S.screen]||renderHome)();
+  bindAll();
+}
+
+// ── TOPBAR ────────────────────────────────────────────────────────
+function topbar(back,backFn){
+  return `<div class="topbar">
+    <span style="font-size:14px;color:#666;cursor:pointer;padding:4px 8px 4px 0" onclick="${backFn||'goScreen(\'home\')'}">‹ ${back||'Inicio'}</span>
+    <div class="logo">Salón<span>Estudio</span></div>
+    <div style="display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700">
+      <span style="color:#E24B4A">🔥${S.streak}</span>
+      <span style="color:#BA7517">⭐${S.xp}</span>
+    </div>
+  </div>`;
+}
+
+// ── KOKE FLOAT ────────────────────────────────────────────────────
+function kokeFloat(){
+  return `<div style="position:fixed;bottom:16px;right:14px;z-index:50;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none">
+    ${kokeBubbleG?`<div style="background:#fff;border:1px solid #e8e8e4;border-radius:12px;border-bottom-right-radius:3px;padding:8px 12px;max-width:190px;font-size:12px;color:#1a1a1a;line-height:1.4;font-weight:500;box-shadow:0 2px 12px rgba(0,0,0,.13);pointer-events:auto">${kokeBubbleG}</div>`:''}
+    <div style="display:flex;align-items:flex-end;gap:8px;pointer-events:auto">
+      <div onclick="goScreen('pizarra')" style="width:46px;height:46px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.3);font-size:22px" title="Pizarra">📐</div>
+      <div onclick="setKoke('normal',rnd(KMSGS.idle));render()" style="cursor:pointer;filter:drop-shadow(0 2px 8px rgba(0,0,0,.2))">${kokesvg(kokeModeG,58)}</div>
+    </div>
+  </div>`;
+}
+
+function badgeToast(){
+  if(!newBadgeG) return '';
+  return `<div style="position:fixed;top:64px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;border-radius:12px;padding:10px 20px;font-size:13px;font-weight:600;z-index:100;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.3);animation:fadeUp .3s ease">
+    <span style="font-size:20px">${newBadgeG.icon}</span> ¡Insignia! ${newBadgeG.n}
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// SCREENS
+// ════════════════════════════════════════════════════════════════
+
+// ── HOME ──────────────────────────────────────────────────────────
+function renderHome(){
+  const totalTemas=Object.values(TEMAS).flat().length;
+  const maxEx=totalTemas*TYPES_CACHE.length*PER_TEMA;
+  const cacheCount=countCached();
+  const cachePct=Math.min(100,Math.round((cacheCount/maxEx)*100));
+  const spaced=Object.entries(S.spaced||{}).sort((a,b)=>a[1]-b[1]).slice(0,3);
+  const precis=S.totalQ>0?Math.round((S.correct/S.totalQ)*100):0;
+
+  let spacedHtml='';
+  if(spaced.length>0){
+    spacedHtml=`<div style="background:#FFF8E7;border:1.5px solid #EF9F27;border-radius:14px;padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#633806;margin-bottom:8px">🔁 Repaso inteligente recomendado</div>
+      ${spaced.map(([t,v])=>{
+        const r=RAMOS.find(r=>TEMAS[r.id]?.includes(t))||RAMOS[0];
+        return `<div onclick="curRamo=RAMOS.find(r=>r.id==='${r.id}');curTema='${t}';actType='quiz';goScreen('practice');loadQuestion()" style="background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;font-size:13px">
+          <span>${r.e} ${t}</span><span style="color:#EF9F27;font-weight:700">Repasar →</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  const ramoCards=RAMOS.map(r=>{
+    const pct=S.ramoProgress?.[r.id]||0;
+    return `<div class="card" onclick="curRamo=RAMOS.find(x=>x.id==='${r.id}');goScreen('ramo')">
+      <div class="ibox" style="background:${r.c}">${r.e}</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">${r.n}</div>
+        <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${r.cb}"></div></div>
+        <div style="font-size:11px;color:#888">${TEMAS[r.id].length} temas · ∞ IA · ${pct}%</div>
+      </div>
+      <span style="color:#ccc;font-size:18px">›</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div style="background:#1a1a1a;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#fff">Salón<span style="color:#1D9E75">Estudio</span> <span style="font-size:11px;color:#555;font-weight:400">v3</span></div>
+        <div style="font-size:11px;color:#666;margin-top:2px">Ing. Comercial · UNAB Advance · 1er Trimestre</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${onlineStatus?'#1D9E75':'#E24B4A'}"></div>
+        <span style="font-size:11px;color:${onlineStatus?'#1D9E75':'#E24B4A'};font-weight:700">${onlineStatus?'Online':'Offline'}</span>
+      </div>
+    </div>
+    <div class="main">
+      <div style="background:linear-gradient(135deg,#1D9E75,#0a5c44);border-radius:18px;padding:18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:2px">¡Hola, Koke! 👋</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.75)">Estratega · Analítico · Innovador 🧠</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px">${onlineStatus?'IA en tiempo real 🤖':'Modo offline 📦 '+cacheCount+' ej. guardados'}</div>
+        </div>
+        ${kokesvg('happy',65)}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        ${[{e:'⭐',l:'XP',v:S.xp},{e:'🔥',l:'Racha',v:S.streak},{e:'📝',l:'Hechos',v:S.totalQ},{e:'🎯',l:'Precisión',v:precis+'%'}].map(s=>`
+          <div class="stat-box"><div class="stat-num">${s.v}</div><div class="stat-lbl">${s.e} ${s.l}</div></div>`).join('')}
+      </div>
+
+      ${cachePct<50&&onlineStatus?`<div onclick="goScreen('cache')" style="background:#E1F5EE;border:1px solid #1D9E75;border-radius:12px;padding:12px 14px;margin-bottom:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:13px;font-weight:700;color:#0F6E56">📦 ${cacheCount} ejercicios guardados (${cachePct}%)</div><div style="font-size:12px;color:#1D9E75">Toca para descargar más para offline</div></div>
+        <span style="font-size:20px">›</span>
+      </div>`:''}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        ${[
+          {icon:'💬',label:'Explícame',color:'#378ADD',bg:'#E6F1FB',fn:"goScreen('explicame')"},
+          {icon:'📋',label:'Examen IA',color:'#D85A30',bg:'#FAECE7',fn:"goScreen('ramo')"},
+          {icon:'📊',label:'Progreso',color:'#7F77DD',bg:'#EEEDFE',fn:"goScreen('progreso')"},
+          {icon:'❌',label:'Mis Errores',color:'#E24B4A',bg:'#FCEBEB',fn:"goScreen('errores')"},
+          {icon:'📦',label:'Caché Offline',color:'#1D9E75',bg:'#E1F5EE',fn:"goScreen('cache')"},
+          {icon:'🏆',label:'Insignias',color:'#EF9F27',bg:'#FAEEDA',fn:"goScreen('badges')"},
+        ].map(a=>`<div onclick="${a.fn}" style="background:${a.bg};border-radius:14px;padding:14px 12px;cursor:pointer;display:flex;align-items:center;gap:10px">
+          <span style="font-size:22px">${a.icon}</span>
+          <div style="font-size:14px;font-weight:700;color:${a.color}">${a.label}</div>
+        </div>`).join('')}
+      </div>
+
+      ${spacedHtml}
+
+      <div class="sec">Estudiar por ramo</div>
+      ${ramoCards}
+    </div>
+    ${kokeFloat()}${badgeToast()}`;
+}
+
+// ── RAMO ──────────────────────────────────────────────────────────
+function renderRamo(){
+  const R=curRamo;
+  if(!R) return renderHome();
+  const temaCards=TEMAS[R.id].map(t=>{
+    const hq=cacheMeta[t]?.quiz||0;
+    const hc=cacheMeta[t]?.calculo||0;
+    const cached=hq>0||hc>0;
+    return `<div style="background:#fff;border:1px solid #e8e8e4;border-radius:14px;padding:12px 15px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div>
+          <div style="font-size:14px;font-weight:600">${t}</div>
+          <div style="font-size:11px;color:#888">${cached?`📦 ${hq+hc} guardados`:''} · ${actType==='calculo'?'+25':actType==='quiz'?'+20':'+15'} XP</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <div onclick="curTema='${t}';goScreen('examen');startExamen()" style="background:#FAECE7;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;color:#712B13;cursor:pointer">📋 Examen</div>
+          <div onclick="curTema='${t}';goScreen('practice');loadQuestion()" style="background:${R.c};border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;color:${R.ct};cursor:pointer">Practicar →</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `${topbar(R.n,"goScreen('home')")}
+    <div class="main">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div class="ibox" style="width:50px;height:50px;font-size:24px;background:${R.c};border-radius:13px">${R.e}</div>
+        <div><div style="font-size:17px;font-weight:700">${R.n}</div><div style="font-size:12px;color:#777">${TEMAS[R.id].length} temas · IA generativa</div></div>
+      </div>
+      <div class="sec">Tipo de ejercicio</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        ${[{id:'quiz',e:'📝',n:'Quiz IA'},{id:'calculo',e:'🔢',n:'Cálculo'},{id:'completar',e:'✏️',n:'Completar'}].map(a=>`
+          <div onclick="actType='${a.id}';render()" style="padding:8px 14px;border-radius:999px;border:1.5px solid ${actType===a.id?R.cb:'#ddd'};background:${actType===a.id?R.c:'#fff'};cursor:pointer;font-size:13px;font-weight:600;color:${actType===a.id?R.ct:'#555'};display:flex;align-items:center;gap:5px">
+            ${a.e} ${a.n}
+          </div>`).join('')}
+      </div>
+      <div class="sec">Temas</div>
+      ${temaCards}
+    </div>
+    ${kokeFloat()}`;
+}
+
+// ── PRACTICE ──────────────────────────────────────────────────────
+function renderPractice(){
+  const R=curRamo; const q=questionG;
+  const offline=!onlineStatus;
+
+  const isCorrect=q?(
+    actType==='quiz'?selectedG===q.correct:
+    actType==='completar'?fillValG.trim().toLowerCase()===(q.blank||'').toLowerCase():
+    calcValG.trim().toLowerCase()===(q.answer||'').toLowerCase()
+  ):false;
+
+  let qHtml='';
+  if(loadingG){
+    qHtml=`<div style="text-align:center;padding:50px 20px">
+      <div style="font-size:38px;margin-bottom:14px;display:inline-block;animation:spin 1s linear infinite">⚙️</div>
+      <div style="font-size:15px;font-weight:600;color:#555">${offline?'Cargando ejercicio guardado...':'Claude generando ejercicio único...'}</div>
+      <div style="font-size:12px;color:#888;margin-top:6px">${offline?'📦 Modo offline — usando caché':'🤖 Nunca la misma pregunta dos veces'}</div>
+    </div>`;
+  } else if(q){
+    // QUIZ
+    if(actType==='quiz'){
+      qHtml=`<div style="font-size:16px;font-weight:600;line-height:1.6;margin-bottom:16px;color:#1a1a1a">${q.question||''}</div>
+        ${(q.options||[]).map((o,i)=>{
+          let cls='opt';
+          if(answeredG){if(i===q.correct)cls+=' ok';else if(i===selectedG)cls+=' err';}
+          return `<button class="${cls}" onclick="if(!answeredG){selectedG=${i};handleAnswer(${i}===${q.correct})}">${['A','B','C','D'][i]}. ${o}</button>`;
+        }).join('')}`;
+    }
+    // COMPLETAR
+    if(actType==='completar'){
+      qHtml=`<div style="font-size:15px;line-height:2.5;margin-bottom:14px;color:#1a1a1a">
+        ${q.before||''} <input id="fill-in" class="blank" placeholder="..." ${answeredG?'disabled':''} value="${answeredG?q.blank:fillValG}" style="border-bottom-color:${R?.cb||'#1D9E75'}"> ${q.after||''}
+      </div>
+      ${!answeredG?`<button class="btn" style="background:${R?.cb}" onclick="fillValG=document.getElementById('fill-in')?.value||'';handleAnswer(fillValG.trim().toLowerCase()==='${(q.blank||'').toLowerCase()}')">Verificar</button>`:''}
+      ${answeredG?`<div class="fb ${isCorrect?'ok':'err'}">${isCorrect?'✓ ¡Correcto!':'✗ La respuesta es: "'+q.blank+'"'}</div>`:''}`;
+    }
+    // CALCULO
+    if(actType==='calculo'){
+      qHtml=`<div style="font-size:16px;font-weight:600;line-height:1.6;margin-bottom:12px;color:#1a1a1a">${q.problem||''}</div>
+        <div style="background:${R?.c||'#E1F5EE'};border-radius:10px;padding:10px 14px;font-size:13px;color:${R?.ct||'#0F6E56'};margin-bottom:12px;line-height:1.5">💡 ${(q.hint||'').split('.')[0]}.</div>
+        <label style="font-size:13px;color:#777;display:block;margin-bottom:6px">Tu respuesta ${q.unit?'('+q.unit+')':''}</label>
+        <input id="calc-in" class="calc" placeholder="Escribe aquí..." ${answeredG?'disabled':''} value="${answeredG?q.answer:calcValG}">
+        ${!answeredG?`<button class="btn" style="background:${R?.cb}" onclick="calcValG=document.getElementById('calc-in')?.value||'';handleAnswer(calcValG.trim().toLowerCase()==='${(q.answer||'').toLowerCase()}')">Verificar</button>`:''}
+        ${answeredG?`<div class="fb ${isCorrect?'ok':'err'}">${isCorrect?'✓ ¡Correcto! Respuesta: '+q.answer+(q.unit?' '+q.unit:''):'✗ No es correcto. Mira el hint 👇'}</div>`:''}`;
+    }
+
+    // FEEDBACK
+    if(answeredG&&!isCorrect){
+      qHtml+=`<div class="hint-box"><div style="font-size:13px;font-weight:700;color:#633806;margin-bottom:6px">📖 Recuerda, Koke:</div>
+        <div style="font-size:13px;color:#633806;line-height:1.6;margin-bottom:8px">${q.hint||''}</div>
+        ${q.explanation?`<div style="background:#FAEEDA;border-radius:8px;padding:8px 10px;font-size:12px;color:#854F0B;font-weight:600">🔑 Clave: ${q.explanation}</div>`:''}
+      </div>`;
+    }
+    if(answeredG&&isCorrect&&q.explanation){
+      qHtml+=`<div style="background:#EAF3DE;border:1px solid #639922;border-radius:10px;padding:10px 14px;margin-top:8px;font-size:12px;color:#27500A">🌿 ${q.explanation}</div>`;
+    }
+
+    // HINT BUTTON
+    if(!answeredG){
+      qHtml+=`<div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-sec" style="flex:1" onclick="showHintG=true;setKoke('think',rnd(KMSGS.think));render()">💡 Hint</button>
+        <button class="btn btn-sec" style="flex:1" onclick="goScreen('explicame')">💬 Preguntarle a Koke</button>
+      </div>`;
+      if(showHintG){
+        qHtml+=`<div class="hint-box" style="margin-top:8px"><div style="font-size:12px;font-weight:700;color:#633806;margin-bottom:4px">💡 Hint de Koke:</div>
+          <div style="font-size:13px;color:#633806;line-height:1.6">${q.hint||''}</div></div>`;
+      }
+    }
+
+    // NEXT + SUMMARY
+    if(answeredG){
+      qHtml+=`<button class="btn" style="background:${R?.cb};margin-top:12px" onclick="loadQuestion()">Siguiente ejercicio →</button>
+        <button class="btn btn-sec" onclick="goScreen('errores')">Ver sesión · ${sessionC}/${sessionQ} correctas</button>`;
+    }
+  }
+
+  return `${topbar(R?.n||'Ramo',"goScreen('ramo')")}
+    <div class="main">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        ${[{l:'Sesión',v:sessionC+'/'+sessionQ},{l:'Ramo',v:R?.e||'—'},{l:'Tipo',v:actType==='quiz'?'📝':actType==='calculo'?'🔢':'✏️'},{l:offline?'Offline':'Online',v:offline?'📦':'🌐'}].map(s=>`
+          <div class="stat-box" style="flex:1"><div class="stat-num" style="font-size:15px">${s.v}</div><div class="stat-lbl">${s.l}</div></div>`).join('')}
+      </div>
+      ${q&&!loadingG?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="background:${R?.c};border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;color:${R?.ct}">${curTema}</div>
+        ${offline?'<div style="background:#FAEEDA;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;color:#633806">📦 Offline</div>':''}
+      </div>`:''}
+      ${qHtml}
+    </div>
+    ${kokeFloat()}`;
+}
+
+// ── EXAMEN ────────────────────────────────────────────────────────
+function startExamen(){
+  examQs=[]; examAns={}; examDone=false; examScore=null; examTimer=600;
+  if(examInterval) clearInterval(examInterval);
+  loadingG=true; render();
+  genBatch(curRamo.id,curTema,'examen',5).then(qs=>{
+    examQs=Array.isArray(qs)?qs:[];
+    loadingG=false;
+    examInterval=setInterval(()=>{
+      examTimer--;
+      if(examTimer<=0){clearInterval(examInterval);submitExamen();}
+      else render();
+    },1000);
+    render();
+  }).catch(()=>{loadingG=false;examQs=[];render();});
+}
+
+function submitExamen(){
+  clearInterval(examInterval);
+  let c=0;
+  examQs.forEach((q,i)=>{if(examAns[i]===q.correct)c++;});
+  const pct=examQs.length>0?Math.round((c/examQs.length)*100):0;
+  const nota=Math.round((pct/100)*7*10)/10;
+  examScore={c,total:examQs.length,pct,nota};
+  examDone=true;
+  S.exams=(S.exams||0)+1; checkBadges(); saveStats();
+  setKoke(nota>=4?'happy':'sad',nota>=4?'¡Buen examen! 📋':'Repasa lo que falló 💪');
+  goScreen('exres');
+}
+
+function renderExamen(){
+  const mins=Math.floor(examTimer/60);
+  const secs=(examTimer%60).toString().padStart(2,'0');
+  if(loadingG) return `<div style="text-align:center;padding:80px 20px">
+    <div style="font-size:38px;margin-bottom:14px;animation:spin 1s linear infinite;display:inline-block">📋</div>
+    <div style="font-size:15px;font-weight:600">Generando examen con IA...</div></div>`;
+
+  return `<div style="background:#fff;border-bottom:1px solid #e8e8e4;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:20">
+    <div style="font-size:15px;font-weight:700">📋 Examen Simulado</div>
+    <div style="background:${examTimer<120?'#FCEBEB':'#EAF3DE'};border-radius:8px;padding:4px 12px;font-size:15px;font-weight:700;color:${examTimer<120?'#E24B4A':'#1D9E75'}">⏱ ${mins}:${secs}</div>
+    <div style="font-size:13px;font-weight:700;color:#BA7517">⭐${S.xp}</div>
+  </div>
+  <div class="main">
+    <div style="font-size:13px;color:#777;margin-bottom:14px">${curTema} · ${examQs.length} preguntas · Elige la mejor opción</div>
+    ${examQs.map((q,i)=>`
+      <div style="background:#fff;border:1px solid #e8e8e4;border-radius:14px;padding:14px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:#999;margin-bottom:6px">Pregunta ${i+1}</div>
+        <div style="font-size:14px;font-weight:600;line-height:1.55;margin-bottom:10px">${q.question}</div>
+        ${(q.options||[]).map((o,j)=>`<button class="opt" style="${examAns[i]===j?'background:#E6F1FB;border-color:#378ADD;':''}font-size:13px" onclick="examAns[${i}]=${j};render()">
+          <span style="color:#aaa;margin-right:4px">${['A','B','C','D'][j]}.</span>${o}
+        </button>`).join('')}
+      </div>`).join('')}
+    <button class="btn" style="background:#D85A30" onclick="submitExamen()">Entregar examen ✓</button>
+  </div>`;
+}
+
+function renderExRes(){
+  if(!examScore) return renderHome();
+  const ok=examScore.nota>=4;
+  return `${topbar('Inicio',"goScreen('home')")}
+    <div class="main" style="text-align:center;padding-top:30px">
+      ${kokesvg(ok?'happy':'sad',80)}
+      <div style="font-size:40px;font-weight:700;margin:12px 0 4px;color:${ok?'#1D9E75':'#E24B4A'}">${examScore.nota}</div>
+      <div style="font-size:14px;color:#777;margin-bottom:6px">Nota final (sobre 7.0)</div>
+      <div style="font-size:18px;font-weight:600;margin-bottom:20px">${examScore.c}/${examScore.total} correctas · ${examScore.pct}%</div>
+      <div style="background:${ok?'#EAF3DE':'#FCEBEB'};border-radius:14px;padding:14px;margin-bottom:16px;text-align:left">
+        ${examQs.map((q,i)=>`<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:13px">
+          <span>${examAns[i]===q.correct?'✅':'❌'}</span>
+          <span style="color:#555;flex:1">${(q.question||'').slice(0,70)}${q.question?.length>70?'...':''}</span>
+        </div>`).join('')}
+      </div>
+      <button class="btn" style="background:#1D9E75" onclick="goScreen('home')">Volver al inicio</button>
+      <button class="btn btn-sec" onclick="goScreen('errores')">Repasar errores</button>
+    </div>`;
+}
+
+// ── PROGRESO ──────────────────────────────────────────────────────
+function renderProgreso(){
+  const precis=S.totalQ>0?Math.round((S.correct/S.totalQ)*100):0;
+  const spaced=Object.entries(S.spaced||{}).sort((a,b)=>a[1]-b[1]).slice(0,6);
+  return `${topbar('Inicio')}
+    <div class="main">
+      <div style="font-size:17px;font-weight:700;margin-bottom:4px">📊 Mi Progreso</div>
+      <div style="font-size:13px;color:#777;margin-bottom:14px">Análisis completo de tu aprendizaje</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        ${[{e:'⭐',l:'XP Total',v:S.xp},{e:'🔥',l:'Racha actual',v:S.streak},{e:'💥',l:'Mejor racha',v:S.maxStreak},{e:'📝',l:'Total ejercicios',v:S.totalQ||0},{e:'✅',l:'Correctas',v:S.correct||0},{e:'🎯',l:'Precisión',v:precis+'%'}].map(s=>`
+          <div style="background:#fff;border:1px solid #e8e8e4;border-radius:12px;padding:14px;display:flex;gap:10px;align-items:center">
+            <span style="font-size:24px">${s.e}</span>
+            <div><div style="font-size:18px;font-weight:700">${s.v}</div><div style="font-size:11px;color:#888">${s.l}</div></div>
+          </div>`).join('')}
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#555;margin-bottom:10px">Progreso por ramo</div>
+      ${RAMOS.map(r=>{
+        const pct=S.ramoProgress?.[r.id]||0;
+        return `<div style="background:#fff;border:1px solid #e8e8e4;border-radius:12px;padding:14px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="display:flex;gap:8px;align-items:center"><span style="font-size:18px">${r.e}</span><span style="font-size:14px;font-weight:600">${r.n}</span></div>
+            <span style="font-size:14px;font-weight:700;color:${r.cb}">${pct}%</span>
+          </div>
+          <div class="prog-bar" style="height:8px"><div class="prog-fill" style="width:${pct}%;background:${r.cb}"></div></div>
+        </div>`;
+      }).join('')}
+      <div style="font-size:13px;font-weight:700;color:#555;margin-bottom:10px;margin-top:4px">🔁 Repetición espaciada</div>
+      <div style="background:#fff;border:1px solid #e8e8e4;border-radius:12px;padding:14px">
+        ${spaced.length>0?spaced.map(([t,v])=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px">
+            <span style="color:#555;flex:1">${t}</span>
+            <span style="color:${v<1?'#E24B4A':'#1D9E75'};font-weight:700">${v<1?'⚠️ Repasar':'✓ Dominado'}</span>
+          </div>`).join(''):`<div style="font-size:13px;color:#aaa;text-align:center;padding:16px 0">Completa ejercicios para ver el análisis</div>`}
+      </div>
+    </div>`;
+}
+
+// ── ERRORES ───────────────────────────────────────────────────────
+function renderErrores(){
+  const errs=S.errors||[];
+  return `${topbar('Inicio')}
+    <div class="main">
+      <div style="font-size:17px;font-weight:700;margin-bottom:4px">❌ Diario de Errores</div>
+      <div style="font-size:13px;color:#777;margin-bottom:14px">${errs.length} errores guardados · Repasa lo que fallaste</div>
+      ${errs.length===0?`<div style="text-align:center;padding:40px 0">${kokesvg('happy',70)}<div style="font-size:16px;font-weight:600;margin-top:12px">¡Sin errores! 🎉</div></div>`:
+        errs.map((e,i)=>`
+          <div style="background:#fff;border:1.5px solid #FCEBEB;border-radius:14px;padding:14px;margin-bottom:10px">
+            <div style="font-size:11px;color:#E24B4A;font-weight:700;margin-bottom:4px">${e.tema||'—'}</div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:8px;color:#1a1a1a">${(e.question||e.problem||e.before||'Pregunta').slice(0,120)}</div>
+            ${e.hint?`<div style="background:#FFF8E7;border-radius:8px;padding:8px 10px;font-size:12px;color:#633806;line-height:1.5;margin-bottom:8px"><b>📖 Recuerda:</b> ${e.hint}</div>`:''}
+            <div onclick="const r=RAMOS.find(r=>r.id==='${e.ramo}')||RAMOS[0];curRamo=r;curTema='${e.tema||''}';actType='quiz';goScreen('practice');loadQuestion()" style="font-size:12px;color:#378ADD;font-weight:700;cursor:pointer">🔁 Practicar este tema →</div>
+          </div>`).join('')}
+      ${errs.length>0?`<button class="btn btn-red" onclick="S.errors=[];saveStats();render()">🗑 Limpiar historial</button>`:''}
+    </div>`;
+}
+
+// ── CHAT ──────────────────────────────────────────────────────────
+function renderChat(){
+  const msgs=chatHistory;
+  return `${topbar('Inicio')}
+    <div style="background:#fff;border-bottom:1px solid #e8e8e4;padding:8px 16px">
+      <div style="font-size:13px;color:#777">💬 Chat con Koke IA · Pregunta cualquier cosa de tus 4 ramos</div>
+    </div>
+    <div id="chat-msgs" style="flex:1;overflow-y:auto;padding:14px 16px;padding-bottom:70px;display:flex;flex-direction:column;gap:10px;height:calc(100vh - 130px);overflow-y:auto">
+      ${msgs.length===0?`<div style="display:flex;gap:8px;align-items:flex-end">${kokesvg('explain',36)}<div class="chat-msg-bot">¡Hola Koke! Soy tu tutor IA 🎓 Pregúntame cualquier cosa de tus 4 ramos.</div></div>`:''}
+      ${msgs.map(m=>m.role==='user'?
+        `<div style="display:flex;justify-content:flex-end"><div class="chat-msg-user">${m.txt}</div></div>`:
+        `<div style="display:flex;gap:8px;align-items:flex-end">${kokesvg('explain',36)}<div class="chat-msg-bot">${m.txt}</div></div>`
+      ).join('')}
+      ${loadingG?`<div style="display:flex;gap:8px;align-items:flex-end">${kokesvg('think',36)}<div class="chat-msg-bot">Pensando... ⚙️</div></div>`:''}
+    </div>
+    <div style="position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e8e8e4;padding:10px 14px;display:flex;gap:8px">
+      <input id="chat-input" placeholder="Pregúntame algo de tus ramos..." value="${document.getElementById('chat-input')?.value||''}"
+        style="flex:1;padding:10px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:14px;font-family:inherit;outline:none"
+        onkeydown="if(event.key==='Enter')sendChat()">
+      <button onclick="sendChat()" style="padding:10px 16px;border-radius:10px;border:none;background:#1D9E75;color:#fff;font-size:14px;font-weight:700;cursor:pointer">→</button>
+    </div>`;
+}
+
+async function sendChat(){
+  const inp=document.getElementById('chat-input');
+  if(!inp||!inp.value.trim()||loadingG) return;
+  const msg=inp.value.trim(); inp.value='';
+  if(!onlineStatus){
+    chatHistory=[...chatHistory,{role:'user',txt:msg},{role:'assistant',txt:'Sin internet ahora 😅 El chat IA necesita conexión. Tus ejercicios guardados están disponibles offline 📦'}];
+    await db.set(CHAT_KEY,chatHistory); render(); return;
+  }
+  chatHistory=[...chatHistory,{role:'user',txt:msg}];
+  loadingG=true; render();
+  setKoke('think',rnd(KMSGS.explain));
+  try{
+    const resp=await chatClaude(msg,chatHistory);
+    chatHistory=[...chatHistory,{role:'assistant',txt:resp}];
+    S.chats=(S.chats||0)+1; checkBadges(); saveStats();
+    setKoke('happy',rnd(KMSGS.explain));
+  }catch(e){
+    chatHistory=[...chatHistory,{role:'assistant',txt:'Sin conexión 😅 Verifica internet.'}];
+  }
+  await db.set(CHAT_KEY,chatHistory);
+  loadingG=false; render();
+  setTimeout(()=>{ const el=document.getElementById('chat-msgs'); if(el) el.scrollTop=el.scrollHeight; },100);
+}
+
+// ── BADGES ────────────────────────────────────────────────────────
+function renderBadges(){
+  return `${topbar('Inicio')}
+    <div class="main">
+      <div style="font-size:17px;font-weight:700;margin-bottom:4px">🏆 Insignias</div>
+      <div style="font-size:13px;color:#777;margin-bottom:14px">${(S.badges||[]).length}/${BADGE_DEFS.length} desbloqueadas</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${BADGE_DEFS.map(b=>{
+          const ok=(S.badges||[]).includes(b.id);
+          return `<div style="background:#fff;border:1.5px solid ${ok?'#EF9F27':'#e8e8e4'};border-radius:14px;padding:16px;text-align:center;opacity:${ok?1:.45}">
+            <div style="font-size:32px;margin-bottom:6px">${b.icon}</div>
+            <div style="font-size:13px;font-weight:700">${b.n}</div>
+            <div style="font-size:11px;color:${ok?'#EF9F27':'#aaa'};margin-top:4px">${ok?'✓ Desbloqueada':'Bloqueada'}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+// ── CACHÉ ─────────────────────────────────────────────────────────
+function renderCache(){
+  const allTemas=Object.values(TEMAS).flat();
+  const maxEx=allTemas.length*TYPES_CACHE.length*PER_TEMA;
+  const total=countCached();
+  const pct=Math.min(100,Math.round((total/maxEx)*100));
+
+  return `${topbar('Inicio')}
+    <div class="main">
+      <div style="font-size:17px;font-weight:700;margin-bottom:4px">📦 Caché Offline</div>
+      <div style="font-size:13px;color:#777;margin-bottom:14px">Ejercicios pre-generados para estudiar sin internet</div>
+
+      <div style="background:#fff;border-radius:16px;padding:18px;border:1px solid #e8e8e4;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+          <div><div style="font-size:12px;color:#888;margin-bottom:2px">Guardados</div><div style="font-size:30px;font-weight:700">${total}<span style="font-size:14px;color:#aaa;font-weight:400">/${maxEx}</span></div></div>
+          <div style="text-align:right"><div style="font-size:26px;font-weight:700;color:${pct===100?'#1D9E75':'#EF9F27'}">${pct}%</div><div style="font-size:11px;color:#aaa">completado</div></div>
+        </div>
+        <div class="prog-bar" style="height:10px;margin-bottom:8px"><div class="prog-fill" style="width:${pct}%;background:${pct===100?'#1D9E75':'#EF9F27'}"></div></div>
+        <div style="font-size:12px;color:#888;display:flex;justify-content:space-between">
+          <span>${allTemas.length} temas · Quiz + Cálculo · ${PER_TEMA} c/u</span>
+          <span>${maxEx-total} pendientes</span>
+        </div>
+      </div>
+
+      ${!dlRunning?`<button onclick="startDownload(false)" ${!onlineStatus?'disabled':''} class="btn" style="background:${onlineStatus?'#1D9E75':'#ccc'};display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px">
+        <span>⬇️</span> ${onlineStatus?'Generar 5 ejercicios por tema (rápido)':'Sin WiFi — conéctate primero'}
+      </button>
+      <div style="background:#E1F5EE;border:1px solid #1D9E75;border-radius:12px;padding:12px 14px;margin-top:10px">
+        <div style="font-size:13px;font-weight:700;color:#0F6E56;margin-bottom:4px">💡 ¿Cómo funciona el offline?</div>
+        <div style="font-size:12px;color:#1D9E75;line-height:1.6">Cada ejercicio que practicas <b>online</b> se guarda automáticamente. Mientras más estudias con WiFi, más ejercicios tendrás disponibles sin internet. También puedes tocar el botón para pre-generar 5 por tema ahora.</div>
+      </div>`:
+      `<div style="background:#fff;border-radius:14px;padding:16px;border:1px solid #e8e8e4">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:14px;font-weight:700">⬇️ Descargando...</div>
+          <button onclick="dlCancel=true" style="padding:5px 12px;border-radius:8px;border:none;background:#FCEBEB;color:#E24B4A;font-size:12px;font-weight:700;cursor:pointer">Cancelar</button>
+        </div>
+        <div class="prog-bar" style="height:10px;margin-bottom:8px"><div class="prog-fill" style="width:${dlProgress}%;background:#1D9E75"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:8px"><span>${dlDone}/${dlTotal} ejercicios</span><span>${dlProgress}%</span></div>
+        ${dlCurrent?`<div style="font-size:12px;color:#1D9E75;font-weight:600;background:#E1F5EE;border-radius:8px;padding:6px 10px">⚙️ ${dlCurrent}</div>`:''}
+      </div>`}
+
+      <div style="margin-top:14px">
+        <div class="sec">Por ramo</div>
+        ${RAMOS.map(r=>{
+          const temas=TEMAS[r.id];
+          const rCached=temas.reduce((a,t)=>a+TYPES_CACHE.reduce((b,tp)=>b+(cacheMeta[t]?.[tp]||0),0),0);
+          const rMax=temas.length*TYPES_CACHE.length*PER_TEMA;
+          const rPct=Math.round((rCached/rMax)*100);
+          return `<div style="background:#fff;border:1px solid #e8e8e4;border-radius:12px;padding:14px;margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <div style="display:flex;gap:8px;align-items:center"><span style="font-size:18px">${r.e}</span><span style="font-size:14px;font-weight:600">${r.n}</span></div>
+              <span style="font-size:13px;font-weight:700;color:${r.cb}">${rCached}/${rMax}</span>
+            </div>
+            <div class="prog-bar"><div class="prog-fill" style="width:${rPct}%;background:${r.cb}"></div></div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+              ${temas.map(t=>{
+                const hq=cacheMeta[t]?.quiz||0,hc=cacheMeta[t]?.calculo||0;
+                const full=hq>=PER_TEMA&&hc>=PER_TEMA,partial=(hq>0||hc>0)&&!full;
+                return `<div style="font-size:10px;padding:2px 8px;border-radius:999px;background:${full?'#EAF3DE':partial?'#FFF8E7':'#f0f0ec'};color:${full?'#3B6D11':partial?'#633806':'#aaa'};font-weight:600;border:1px solid ${full?'#A3D977':partial?'#EF9F27':'#e8e8e4'}">${full?'✓':partial?hq+hc:'·'} ${t.slice(0,16)}${t.length>16?'…':''}</div>`;
+              }).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      ${total>0?`<button class="btn btn-red" onclick="cache={};cacheMeta={};db.set('${CACHE_KEY}',{});db.set('${META_KEY}',{});render()">🗑 Limpiar caché (${total} ejercicios)</button>`:''}
+    </div>`;
+}
+
+// ── PIZARRA ───────────────────────────────────────────────────────
+function renderPizarra(){
+  return `<div id="pizarra-root" style="display:flex;flex-direction:column;height:100vh;background:#1a1a1a;user-select:none;-webkit-user-select:none;touch-action:none;font-family:-apple-system,BlinkMacSystemFont,sans-serif">
+    <div id="piz-toolbar" style="background:#fff;padding:8px 10px;flex-shrink:0;border-bottom:1px solid #e8e8e4;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <button onclick="goBack()" style="padding:6px 12px;border-radius:10px;border:none;background:#EF9F27;color:#fff;font-weight:700;font-size:13px;cursor:pointer;margin-right:2px">← Volver</button>
+      <div style="width:1px;height:32px;background:#e8e8e4"></div>
+      ${[['pen','✏️','Lápiz'],['line','📏','Línea'],['eraser','⬜','Goma']].map(([id,e,n])=>`
+        <button id="tb-${id}" onclick="pizSetTool('${id}')" style="display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 7px;border-radius:10px;border:none;cursor:pointer;min-width:40px;font-size:10px;font-weight:600;background:${id==='pen'?'#1D9E75':'#f0f0ec'};color:${id==='pen'?'#fff':'#333'}">
+          <span style="font-size:18px;line-height:1">${e}</span>${n}
+        </button>`).join('')}
+      <div style="width:1px;height:32px;background:#e8e8e4"></div>
+      <div style="display:flex;gap:4px;align-items:center">
+        ${[2,4,8,14,22].map((sz,i)=>`<button id="sz-${i}" onclick="pizSetSize(${i})" style="width:${26+i*3}px;height:${26+i*3}px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;border:2px solid ${i===2?'#1D9E75':'#ddd'};background:${i===2?'#E1F5EE':'#f5f5f5'}">
+          <div style="width:${Math.min(sz,16)}px;height:${Math.min(sz,16)}px;border-radius:50%;background:${i===2?'#1D9E75':'#1a1a1a'}"></div>
+        </button>`).join('')}
+      </div>
+      <div style="width:1px;height:32px;background:#e8e8e4"></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${['#1a1a1a','#E24B4A','#1D9E75','#378ADD','#EF9F27','#7F77DD','#ffffff'].map(c=>`
+          <button id="col-${c.replace('#','')}" onclick="pizSetColor('${c}')" style="width:26px;height:26px;border-radius:50%;cursor:pointer;border:3px solid ${c==='#1a1a1a'?'#1D9E75':'transparent'};background:${c};box-shadow:0 0 0 1px ${c==='#ffffff'?'#ccc':'transparent'}"></button>`).join('')}
+      </div>
+      <div style="width:1px;height:32px;background:#e8e8e4"></div>
+      <div style="display:flex;gap:4px">
+        <span style="font-size:11px;color:#999;font-weight:600;align-self:center">Fondo</span>
+        ${[['#FFFEF5','#ddd'],['#ffffff','#e0e0e0'],['#1a1a2e','#444']].map(([bg,bd])=>`<button onclick="pizSetBg('${bg}')" style="width:24px;height:24px;border-radius:6px;cursor:pointer;background:${bg};border:2.5px solid ${bg==='#FFFEF5'?'#1D9E75':bd}"></button>`).join('')}
+      </div>
+      <div style="width:1px;height:32px;background:#e8e8e4"></div>
+      <button onclick="pizUndo()" style="display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 7px;border-radius:10px;border:none;cursor:pointer;min-width:40px;font-size:10px;font-weight:600;background:#f0f0ec;color:#333"><span style="font-size:18px;line-height:1">↩️</span>Deshacer</button>
+      <button onclick="pizClear()" style="display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 7px;border-radius:10px;border:none;cursor:pointer;min-width:40px;font-size:10px;font-weight:600;background:#fff;color:#E24B4A"><span style="font-size:18px;line-height:1">🗑️</span>Limpiar</button>
+    </div>
+    <div id="piz-status" style="background:#fafafa;border-bottom:1px solid #e8e8e4;padding:3px 12px;display:flex;align-items:center;gap:8px;font-size:12px;color:#777;flex-shrink:0">
+      <div id="piz-dot" style="width:8px;height:8px;border-radius:50%;background:#1a1a1a;flex-shrink:0"></div>
+      <span id="piz-tool-lbl" style="font-weight:600;color:#444">Lápiz libre</span>
+      <span style="margin-left:auto;color:#aaa">Lápiz digital · mouse · dedo ✏️</span>
+    </div>
+    <div id="piz-wrap" style="flex:1;position:relative;overflow:hidden">
+      <div id="piz-grid" style="position:absolute;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(0,0,0,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.07) 1px,transparent 1px);background-size:40px 40px"></div>
+      <canvas id="piz-canvas" style="position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;z-index:1;cursor:crosshair"></canvas>
+      <div id="piz-hint" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:2;opacity:.3">
+        <div style="font-size:48px;margin-bottom:8px">✏️</div>
+        <div style="font-size:15px;font-weight:700;color:#333">Pizarra lista</div>
+        <div style="font-size:12px;color:#666;margin-top:4px">Usa tu lápiz digital, mouse o dedo</div>
+      </div>
+    </div>
+    <div style="background:#fff;border-top:1px solid #e8e8e4;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <span style="font-size:12px;color:#aaa;font-weight:600">📐 Pizarra · SalónEstudio</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="pizUndo()" style="padding:7px 14px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;font-size:13px;cursor:pointer;font-weight:600">↩ Deshacer</button>
+        <button onclick="pizClear()" style="padding:7px 14px;border-radius:8px;border:1px solid #fcc;background:#FCEBEB;color:#E24B4A;font-size:13px;cursor:pointer;font-weight:600">🗑 Limpiar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── PIZARRA LOGIC (runs after render) ────────────────────────────
+const PIZ = {
+  tool:'pen', color:'#1a1a1a', sizeIdx:2, bg:'#FFFEF5',
+  drawing:false, lastPt:null, startPt:null, snap:null, hist:[],
+  sizes:[2,4,8,14,22],
+};
+
+function bindPizarra(){
+  const cv=document.getElementById('piz-canvas');
+  const wrap=document.getElementById('piz-wrap');
+  if(!cv||!wrap) return;
+
+  const init=()=>{
+    const w=wrap.clientWidth,h=wrap.clientHeight;
+    const tmp=PIZ.hist.length>0?cv.toDataURL():null;
+    cv.width=w;cv.height=h;
+    const ctx=cv.getContext('2d');
+    ctx.fillStyle=PIZ.bg;ctx.fillRect(0,0,w,h);
+    if(tmp){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0);img.src=tmp;}
+    const hint=document.getElementById('piz-hint');
+    if(hint) hint.style.display=PIZ.hist.length===0?'block':'none';
+  };
+  init();
+  if(wrap._ro) wrap._ro.disconnect();
+  wrap._ro=new ResizeObserver(init);
+  wrap._ro.observe(wrap);
+
+  const getCtx=()=>cv.getContext('2d');
+  const getPt=e=>{
+    const rect=cv.getBoundingClientRect();
+    const sx=cv.width/rect.width,sy=cv.height/rect.height;
+    const src=e.touches?e.touches[0]:e;
+    return{x:(src.clientX-rect.left)*sx,y:(src.clientY-rect.top)*sy};
+  };
+  const push=()=>{PIZ.hist=[...PIZ.hist.slice(-25),cv.toDataURL()];const h=document.getElementById('piz-hint');if(h)h.style.display='none';};
+  window.pizUndo=()=>{
+    if(!PIZ.hist.length)return;
+    const prev=PIZ.hist[PIZ.hist.length-1];PIZ.hist=PIZ.hist.slice(0,-1);
+    const c=getCtx();const img=new Image();img.onload=()=>{c.clearRect(0,0,cv.width,cv.height);c.drawImage(img,0,0);};img.src=prev;
+  };
+  window.pizClear=()=>{push();const c=getCtx();c.fillStyle=PIZ.bg;c.fillRect(0,0,cv.width,cv.height);};
+  window.pizSetTool=t=>{
+    PIZ.tool=t;
+    ['pen','line','eraser'].forEach(id=>{
+      const b=document.getElementById('tb-'+id);
+      if(b){b.style.background=id===t?'#1D9E75':'#f0f0ec';b.style.color=id===t?'#fff':'#333';}
+    });
+    const lbl=document.getElementById('piz-tool-lbl');
+    if(lbl) lbl.textContent=t==='pen'?'Lápiz libre':t==='line'?'Línea recta':'Goma de borrar';
+    cv.style.cursor=t==='eraser'?'cell':'crosshair';
+  };
+  window.pizSetSize=i=>{
+    PIZ.sizeIdx=i;
+    [0,1,2,3,4].forEach(j=>{
+      const b=document.getElementById('sz-'+j);
+      if(b){b.style.borderColor=j===i?'#1D9E75':'#ddd';b.style.background=j===i?'#E1F5EE':'#f5f5f5';b.firstElementChild.style.background=j===i?'#1D9E75':'#1a1a1a';}
+    });
+    const dot=document.getElementById('piz-dot');
+    if(dot){dot.style.width=Math.min(PIZ.sizes[i],16)+'px';dot.style.height=Math.min(PIZ.sizes[i],16)+'px';dot.style.background=PIZ.color;}
+  };
+  window.pizSetColor=c=>{
+    PIZ.color=c;if(PIZ.tool==='eraser')window.pizSetTool('pen');
+    ['#1a1a1a','#E24B4A','#1D9E75','#378ADD','#EF9F27','#7F77DD','#ffffff'].forEach(col=>{
+      const b=document.getElementById('col-'+col.replace('#',''));
+      if(b) b.style.borderColor=col===c?'#1D9E75':'transparent';
+    });
+    const dot=document.getElementById('piz-dot');if(dot)dot.style.background=c;
+  };
+  window.pizSetBg=newBg=>{
+    push();const c_=getCtx();
+    const tmp=cv.toDataURL();
+    c_.fillStyle=newBg;c_.fillRect(0,0,cv.width,cv.height);
+    const img=new Image();img.onload=()=>c_.drawImage(img,0,0);img.src=tmp;
+    PIZ.bg=newBg;
+    const grid=document.getElementById('piz-grid');
+    if(grid) grid.style.display=newBg==='#FFFEF5'?'block':'none';
+    const status=document.getElementById('piz-status');
+    if(status){status.style.background=newBg==='#1a1a2e'?'#111':'#fafafa';}
+  };
+
+  const down=e=>{
+    e.preventDefault();push();PIZ.drawing=true;
+    const p=getPt(e);PIZ.lastPt=p;PIZ.startPt=p;
+    if(PIZ.tool==='line'){PIZ.snap=cv.toDataURL();return;}
+    const c_=getCtx();const sw=PIZ.tool==='eraser'?PIZ.sizes[PIZ.sizeIdx]*2.5:PIZ.sizes[PIZ.sizeIdx];
+    c_.beginPath();c_.arc(p.x,p.y,sw/2,0,Math.PI*2);c_.fillStyle=PIZ.tool==='eraser'?PIZ.bg:PIZ.color;c_.fill();
+    c_.beginPath();c_.moveTo(p.x,p.y);
+  };
+  const move=e=>{
+    if(!PIZ.drawing)return;e.preventDefault();
+    const p=getPt(e);const c_=getCtx();
+    const sw=PIZ.tool==='eraser'?PIZ.sizes[PIZ.sizeIdx]*2.5:PIZ.sizes[PIZ.sizeIdx];
+    if(PIZ.tool==='line'){
+      const img=new Image();img.onload=()=>{
+        c_.clearRect(0,0,cv.width,cv.height);c_.drawImage(img,0,0);
+        c_.beginPath();c_.moveTo(PIZ.startPt.x,PIZ.startPt.y);c_.lineTo(p.x,p.y);
+        c_.strokeStyle=PIZ.color;c_.lineWidth=PIZ.sizes[PIZ.sizeIdx];c_.lineCap='round';c_.stroke();
+      };img.src=PIZ.snap;PIZ.lastPt=p;return;
+    }
+    c_.beginPath();c_.moveTo(PIZ.lastPt.x,PIZ.lastPt.y);c_.lineTo(p.x,p.y);
+    c_.strokeStyle=PIZ.tool==='eraser'?PIZ.bg:PIZ.color;c_.lineWidth=sw;c_.lineCap='round';c_.lineJoin='round';c_.stroke();
+    PIZ.lastPt=p;
+  };
+  const up=e=>{if(!PIZ.drawing)return;e.preventDefault();PIZ.drawing=false;};
+  cv.addEventListener('mousedown',down);cv.addEventListener('mousemove',move);cv.addEventListener('mouseup',up);cv.addEventListener('mouseleave',up);
+  cv.addEventListener('touchstart',down,{passive:false});cv.addEventListener('touchmove',move,{passive:false});cv.addEventListener('touchend',up);cv.addEventListener('touchcancel',up);
+}
+
+// ── BIND ALL ──────────────────────────────────────────────────────
+function bindAll(){
+  if(S.screen==='pizarra') bindPizarra();
+  if(S.screen==='practice'){
+    const fi=document.getElementById('fill-in');
+    if(fi) fi.addEventListener('keydown',e=>{if(e.key==='Enter'&&!answeredG){fillValG=fi.value;handleAnswer(fillValG.trim().toLowerCase()===(questionG?.blank||'').toLowerCase());}});
+    const ci=document.getElementById('calc-in');
+    if(ci) ci.addEventListener('keydown',e=>{if(e.key==='Enter'&&!answeredG){calcValG=ci.value;handleAnswer(calcValG.trim().toLowerCase()===(questionG?.answer||'').toLowerCase());}});
+  }
+  if(S.screen==='explicame'){
+    const inp=document.getElementById('chat-input');
+    if(inp) inp.addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
+    setTimeout(()=>{const el=document.getElementById('chat-msgs');if(el)el.scrollTop=el.scrollHeight;},80);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// START
+// ════════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
